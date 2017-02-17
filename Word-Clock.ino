@@ -41,9 +41,13 @@ uint16_t wordMap[ROWS];
 //Brightness for each individual LED channel
 uint16_t redBright, greenBright, blueBright;
 
-//Word Mode -> 0
-//DigitMode -> 1
-uint16_t mode;
+//Different clock modes
+enum modes
+{
+  OFF, WORDMODE, DIGITMODE, CYCLEMODE
+};
+
+modes mode;
 
 //LED Locations for HAPPY BIRTHDAY DANIELLE
 uint16_t birthdayLEDS[20][2] = {{0,10},{1,10},{2,10},{3,10},{4,3},
@@ -118,9 +122,9 @@ void setup() {
   
   matrix.begin();
   matrix.show();
-  mode = 0;
+  mode = OFF;
   
-//  setTime(0,05,00,11,2,2017);
+//  setTime(21,20,00,16,2,2017);
 //  RTC.set(now());
   redBright = 200;
   greenBright = 200;
@@ -165,22 +169,23 @@ void loop() {
     wordTime(tm);
 
     //wordTest();
-    if(mode == 0)
+    switch(mode)
     {
-      matrix.show();
-    }
-    else if(mode == 1)
-    {
-      showWordMap();
-      if(tm.Day == 4 && tm.Month == 7)
-      {
+      case OFF:
+        matrix.show();
+        break;
+      case WORDMODE:
+        showWordMap();
+        if(tm.Day == 4 && tm.Month == 7)
+        {
           birthday();
-      }
+        }
+        break;
+      case DIGITMODE:
+        showDigitMap(tm);
+        break;
     }
-    else if(mode == 2)
-    {
-      showDigitMap(tm);
-    }
+    
 
 
     Serial.write(27);       // ESC command
@@ -211,15 +216,15 @@ void showDigitMap(tmElements_t tm)
   }
   matrix.clear();
 
-  unitsc = units & 0xff;
-  tensc = tens & 0xff;
+  unitsc = (char) units ;
+  tensc = (char) tens;
 
   
-  Serial.print(tens);
-  Serial.println(units);
+  Serial.print(tensc);
+  Serial.println(unitsc);
  
-  matrix.drawChar( 0, 1, tens, 0xffff, 0x0000,1);
-  matrix.drawChar( 6, 1, units, 0xffff, 0x0000,1);
+  matrix.drawChar( 0, 1, tensc, matrix.Color(redBright,greenBright,blueBright), 0x0000,1);
+  matrix.drawChar( 6, 1, unitsc, 0xffff, 0x0000,1);
   matrix.show();
 }
 
