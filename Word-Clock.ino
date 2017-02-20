@@ -44,19 +44,39 @@ uint16_t redBright, greenBright, blueBright;
 //Different clock modes
 enum modes
 {
-  OFF, WORDMODE, DIGITMODE, CYCLEMODE
+  OFF, 
+  WORD_MODE, 
+  DIGIT_MODE, 
+  CYCLE_MODE,
+  ADJUST_COLOR,
+  ADJUST_BRIGHTNESS
 };
 
+//Create mode variable
 modes mode;
 
+int modeDex;
+
+//Variable for adjustable word clock color
+uint16_t wordColor;
+
+//Variable for adjustable word clock brightness
+uint16_t brightness;
+
 //LED Locations for HAPPY BIRTHDAY DANIELLE
-uint16_t birthdayLEDS[20][2] = {{0,10},{1,10},{2,10},{3,10},{4,3},
-                                {4,4},{4,5},{4,6},{4,7},{4,8},{4,9},{4,10},
-                                {7,0},{7,1},{7,2},{7,3},{7,4},{7,5},{7,6},{7,7}};
+uint16_t birthdayLEDS[20][2] = {{0,10},{1,10},{2,10},{3,10},{4,3},              
+                                {4,4},{4,5},{4,6},{4,7},{4,8},{4,9},{4,10},     
+                                {7,0},{7,1},{7,2},{7,3},{7,4},{7,5},{7,6},{7,7}}; 
 
 //---------------------------------------------------------------
 
+//Addressable LED strip pin
 #define PIN 6
+
+//Up, down, and select buttons configured as pullup buttons
+#define UP 2
+#define DOWN 3
+#define SELECT 4
 
 #define keyITS       wordMap[0]  |= 0x700                //0b11100000000
 #define keyA         wordMap[0]  |= 0x40                 //0b00001000000
@@ -115,29 +135,53 @@ Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(ROWS, COLUMNS, PIN,
 // and minimize distance between Arduino and first pixel.  Avoid connecting
 // on a live circuit...if you must, connect GND first.
 
-void setup() {
+void setup() 
+{
 
 
   Serial.begin(9600);
+
+  pinMode(UP,INPUT_PULLUP);
+  pinMode(DOWN,INPUT_PULLUP);
+  pinMode(SELECT,INPUT_PULLUP);
   
   matrix.begin();
   matrix.show();
+
   mode = OFF;
+  modeDex = 0;
   
-//  setTime(21,20,00,16,2,2017);
+//  setTime(8,53,00,18,2,2017);
 //  RTC.set(now());
-  redBright = 200;
-  greenBright = 200;
-  blueBright = 200;
-  
 
+  wordColor = matrix.Color(0,255,150);
   
-
+  
 }
 
-void loop() {
+void loop() 
+{
     tmElements_t tm;
     RTC.read(tm);
+
+    int upPushed = digitalRead(2);
+    int downPushed = digitalRead(3);
+    int selectPushed = digitalRead(4);
+
+    if(selectPushed)
+    {
+      if(modeDex <= 4)
+      {
+        modeDex++;
+      }
+      else
+      {
+        modeDex = 0;
+      }
+      mode = modes{modeDex};
+    }
+   
+    
      
     Serial.print(tm.Hour,DEC);
     Serial.print(":");
@@ -172,20 +216,30 @@ void loop() {
     switch(mode)
     {
       case OFF:
-        matrix.show();
+        redBright = 0;
+        greenBright = 0;
+        blueBright = 0;
+        showWordMap();
         break;
-      case WORDMODE:
+      case WORD_MODE:
         showWordMap();
         if(tm.Day == 4 && tm.Month == 7)
         {
           birthday();
         }
         break;
-      case DIGITMODE:
+      case DIGIT_MODE:
         showDigitMap(tm);
         break;
+      case ADJUST_COLOR:
+        adjustColor();
+        break;
+      case ADJUST_BRIGHTNESS:
+        adjustBrightness();
+        break;
+
     }
-    
+
 
 
     Serial.write(27);       // ESC command
@@ -193,9 +247,71 @@ void loop() {
     Serial.write(27);
     Serial.print("[H");     // cursor to home command
 
-      
+   
 
 
+}
+
+void adjustBrightness()
+{
+  int upPushed;
+  int downPushed;
+  int selectPushed = digitalRead(4);
+
+  while(!selectPushed)
+  {
+    upPushed = digitalRead(2);
+    downPushed = digitalRead(3);
+    if(upPushed)
+    {
+      brightness+=20;
+      if(brightness > 255)
+      {
+        brightness = 255;
+      }
+    }
+    else if(downPushed)
+    {
+      brightness-=20;
+      if(brightness < 0)
+      {
+        brightness = 0;
+      }
+    }
+    matrix.setBrightness(brightness);
+  }
+}
+
+void adjustColor()
+{
+
+  int upPushed;
+  int downPushed;
+  int selectPushed = digitalRead(4);
+  int pos = 0;
+
+  while(!selectPushed)
+  {
+    upPushed = digitalRead(2);
+    downPushed = digitalRead(3);
+    if(upPushed)
+    {
+      pos+=5;
+      pos%=256;
+      wordColor = Wheel(pos & 255);
+    }
+    if(downPushed)
+    {
+      pos-=5;
+      if(pos < 0)
+      {
+        pos = 256;
+      }
+      pos%=256;
+      wordColor = Wheel(pos & 255);
+    }
+  }
+  
 }
 
 void showDigitMap(tmElements_t tm) 
@@ -237,7 +353,7 @@ void birthday()
 //  keyDANIELLE;
 
   for(j=0; j<256; j++) 
-  { // 5 cycles of all colors on wheel
+  { 
     for(i=0; i < 20; i++) 
     {
         matrix.drawPixel((uint16_t)birthdayLEDS[i][1],(uint16_t)birthdayLEDS[i][0],Wheel(((i * 256 / 20) + j) & 255));
@@ -278,7 +394,7 @@ void showWordMap()
               matrix.drawPixel(column,row,0);
               break;
         case 1:
-              matrix.drawPixel(column,row,matrix.Color(redBright,greenBright,blueBright));
+              matrix.drawPixel(column,row,wordColor);
               break;
       }
     }
