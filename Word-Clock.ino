@@ -58,10 +58,10 @@ modes mode;
 int modeDex;
 
 //Variable for adjustable word clock color
-uint16_t wordColor;
+uint16_t wordColor, savedColor, colorPos;
 
 //Variable for adjustable word clock brightness
-uint16_t brightness;
+uint8_t brightness;
 
 //LED Locations for HAPPY BIRTHDAY DANIELLE
 uint16_t birthdayLEDS[20][2] = {{0,10},{1,10},{2,10},{3,10},{4,3},              
@@ -148,14 +148,17 @@ void setup()
   matrix.begin();
   matrix.show();
 
-  mode = OFF;
+  brightness = 127;
+
+
   modeDex = 0;
+  mode = modes{modeDex};
   
 //  setTime(8,53,00,18,2,2017);
 //  RTC.set(now());
 
-  wordColor = matrix.Color(0,255,150);
-  
+  savedColor = matrix.Color(0,255,150);
+  wordColor = savedColor;
   
 }
 
@@ -167,17 +170,10 @@ void loop()
     int upPushed = digitalRead(2);
     int downPushed = digitalRead(3);
     int selectPushed = digitalRead(4);
-
-    if(selectPushed)
+    if(!selectPushed)
     {
-      if(modeDex <= 4)
-      {
-        modeDex++;
-      }
-      else
-      {
-        modeDex = 0;
-      }
+      modeDex++;
+      modeDex%=6;
       mode = modes{modeDex};
     }
    
@@ -194,21 +190,6 @@ void loop()
     Serial.print(tm.Day,DEC);
     Serial.print("/");
     Serial.println(1970+tm.Year,DEC);
-    
-    
-
-//    if(tm.Hour >= 22 || tm.Hour < 5)
-//    {
-//      redBright = 128;
-//      greenBright = 128;
-//      blueBright = 128;
-//    }
-//    else
-//    {
-//        redBright = 255;
-//        greenBright = 255;
-//        blueBright = 255;
-//    }
 
     wordTime(tm);
 
@@ -216,12 +197,11 @@ void loop()
     switch(mode)
     {
       case OFF:
-        redBright = 0;
-        greenBright = 0;
-        blueBright = 0;
+        wordColor = 0;
         showWordMap();
         break;
       case WORD_MODE:
+        wordColor = savedColor;
         showWordMap();
         if(tm.Day == 4 && tm.Month == 7)
         {
@@ -232,10 +212,13 @@ void loop()
         showDigitMap(tm);
         break;
       case ADJUST_COLOR:
-        adjustColor();
+        adjustColor(upPushed,downPushed);
+        showWordMap();
         break;
       case ADJUST_BRIGHTNESS:
-        adjustBrightness();
+        adjustBrightness(upPushed,downPushed);
+        showWordMap();
+        
         break;
 
     }
@@ -252,66 +235,54 @@ void loop()
 
 }
 
-void adjustBrightness()
+void adjustBrightness(int upPushed, int downPushed)
 {
-  int upPushed;
-  int downPushed;
-  int selectPushed = digitalRead(4);
-
-  while(!selectPushed)
+  if(!upPushed)
   {
-    upPushed = digitalRead(2);
-    downPushed = digitalRead(3);
-    if(upPushed)
+    //brightness+=20;
+    if(brightness+20 > 255)
+    {
+      brightness = 254;
+    }
+    else
     {
       brightness+=20;
-      if(brightness > 255)
-      {
-        brightness = 255;
-      }
     }
-    else if(downPushed)
+  }
+  else if(!downPushed)
+  {
+    //brightness-=20;
+    if(brightness-20 < 0)
+    {
+      brightness = 0;
+    }
+    else
     {
       brightness-=20;
-      if(brightness < 0)
-      {
-        brightness = 0;
-      }
     }
-    matrix.setBrightness(brightness);
   }
+  matrix.setBrightness(brightness);
 }
 
-void adjustColor()
+void adjustColor(int upPushed, int downPushed)
 {
-
-  int upPushed;
-  int downPushed;
-  int selectPushed = digitalRead(4);
-  int pos = 0;
-
-  while(!selectPushed)
+  if(!upPushed)
   {
-    upPushed = digitalRead(2);
-    downPushed = digitalRead(3);
-    if(upPushed)
-    {
-      pos+=5;
-      pos%=256;
-      wordColor = Wheel(pos & 255);
-    }
-    if(downPushed)
-    {
-      pos-=5;
-      if(pos < 0)
-      {
-        pos = 256;
-      }
-      pos%=256;
-      wordColor = Wheel(pos & 255);
-    }
+    colorPos+=5;
+    colorPos%=256;
+    savedColor = Wheel(colorPos);
   }
-  
+  else if(!downPushed)
+  {
+    colorPos-=5;
+    if(colorPos < 0)
+    {
+      colorPos = 256;
+    }
+    colorPos%=256;
+    savedColor = Wheel(colorPos);
+  }
+  wordColor = savedColor;
 }
 
 void showDigitMap(tmElements_t tm) 
@@ -336,11 +307,11 @@ void showDigitMap(tmElements_t tm)
   tensc = (char) tens;
 
   
-  Serial.print(tensc);
-  Serial.println(unitsc);
+  //Serial.print(tensc);
+  //Serial.println(unitsc);
  
-  matrix.drawChar( 0, 1, tensc, matrix.Color(redBright,greenBright,blueBright), 0x0000,1);
-  matrix.drawChar( 6, 1, unitsc, 0xffff, 0x0000,1);
+  matrix.drawChar( 0, 1, tensc, savedColor, 0x0000,1);
+  matrix.drawChar( 6, 1, unitsc, savedColor, 0x0000,1);
   matrix.show();
 }
 
@@ -387,7 +358,7 @@ void showWordMap()
     for( byte column = 0; column < COLUMNS; column++)
     {
       bool onOff = bitRead(wordMap[row],COLUMNS-column-1);
-      Serial.print(onOff);
+      //Serial.print(onOff);
       switch(onOff)
       {
         case 0:
@@ -398,11 +369,11 @@ void showWordMap()
               break;
       }
     }
-    Serial.println();
+    //Serial.println();
     
     wordMap[row] = 0;
   }
-  Serial.println("------------------------------------");
+  //Serial.println("------------------------------------");
   
   matrix.show();
 }
