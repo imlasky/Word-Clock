@@ -1,14 +1,25 @@
-# Word-Clock
+###Word-Clock
 
-##A word clock arduino implementation for a gift. 
+##An arduino word clock implementation for a gift
 
-###Modes
-- Mode 0: All LEDs are off; RTC still timekeeping.
+#Modes
 
-- Mode 1: LEDs show time in word mode.
+- OFF: Turns off all LEDs
+- WORD_MODE: Displays the time as a phrase, e.g., "It's twenty til five"
+  - Accurate to within a 2 minute interval
+  - With word mode on, if the date is July 4th, birthday mode activates
+- DIGIT_MODE: Displays the time as it would appear on a digital clock
+- CYCLE_MODE: Alternates between WORD_MODE and DIGIT_MODE every ten seconds
+- ADJUST_COLOR: Brings up a color wheel to select from 28 colors
+- ADJUST_BRIGHTNESS: Brings up a star that changes size depending upon the brightness selected
+- ADJUST_HOUR: Allows user to adjust current hour in digit format
+- ADJUST_MINUTE: Allows the user to adjust the current minute in digit format
+- ADJUST_MONTH: Allows user to adjust the current month in digit format
+- ADJUST_DAY: Allows user to adjust the current day in digit format
 
-  - Will cycle colors through HAPPY BIRTHDAY DANIELLE on her birthday
+#Usage
 
-- Mode 2: LEDs show time in digit form
-
+- The mode is selected using pullup buttons on the side of the clock
+  - Up and Down to navigate to the mode
+  - Select to select the mode and then exit the mode
 
