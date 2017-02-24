@@ -1,7 +1,7 @@
 //
 //
 //   Ian Lasky
-//   February 12, 2017
+//   February 24, 2017
 //
 //
 //   Outline of clock for bitmapping reference
@@ -38,9 +38,6 @@
 //Bit map for each led, 11-rows
 uint16_t wordMap[ROWS];   
 
-//Brightness for each individual LED channel
-uint16_t redBright, greenBright, blueBright;
-
 //Different clock modes
 enum modes
 {
@@ -49,24 +46,39 @@ enum modes
   DIGIT_MODE, 
   CYCLE_MODE,
   ADJUST_COLOR,
-  ADJUST_BRIGHTNESS
+  ADJUST_BRIGHTNESS,
+  ADJUST_HOUR,
+  ADJUST_MINUTE,
+  ADJUST_MONTH,
+  ADJUST_DAY
 };
 
 //Create mode variable
 modes mode;
 
+//Mode index for mode switching
 int modeDex;
 
-//Variable for adjustable word clock color
-uint16_t wordColor, savedColor, colorPos;
+//Variables for adjustable word clock color
+uint16_t wordColor, savedColor; 
+int colorPos;
 
-//Variable for adjustable word clock brightness
+//LED locations on color wheel to select color
+uint16_t colorWheel[28][2] = {{0,3},{0,4},{0,5},{0,6},{0,7},{1,8},{2,9},
+                              {3,10},{4,10},{5,10},{6,10},{7,10},{8,9},{9,8},
+                              {10,7},{10,6},{10,5},{10,4},{10,3},{9,2},{8,1},
+                              {7,0},{6,0},{5,0},{4,0},{3,0},{2,1},{1,2}};
+
+//Variables for adjustable word clock brightness
 uint8_t brightness;
+int radius;
 
 //LED Locations for HAPPY BIRTHDAY DANIELLE
 uint16_t birthdayLEDS[20][2] = {{0,10},{1,10},{2,10},{3,10},{4,3},              
                                 {4,4},{4,5},{4,6},{4,7},{4,8},{4,9},{4,10},     
                                 {7,0},{7,1},{7,2},{7,3},{7,4},{7,5},{7,6},{7,7}}; 
+
+
 
 //---------------------------------------------------------------
 
@@ -110,9 +122,7 @@ uint16_t birthdayLEDS[20][2] = {{0,10},{1,10},{2,10},{3,10},{4,3},
 #define hourNOON     wordMap[9]  |= 0x1e                //0b00000011110
 #define hourMIDNIGHT wordMap[8]  |= 0x7, wordMap[10]  |= 0x7c0       //0b00000000111 , 0b11111000000
 
-
-
-//hours  [hourONE,hourTWO,hourTHREE,hourFOUR,hourFIVE,hourSIX,hourSEVEN,hourEIGHT,hourNINE, hourTEN, hourELEVEN, hourNOON, hourMIDNIGHT];
+#define MODENUM 10
 
 
 // Parameter 1 = number of pixels in strip
@@ -148,17 +158,21 @@ void setup()
   matrix.begin();
   matrix.show();
 
-  brightness = 127;
+  radius = 3;
+  brightness = radius * 256 / 5;
+  matrix.setBrightness(brightness);
 
-
-  modeDex = 0;
+  modeDex = 1;
   mode = modes{modeDex};
+
+  colorPos = 0;
   
 //  setTime(8,53,00,18,2,2017);
 //  RTC.set(now());
 
-  savedColor = matrix.Color(0,255,150);
+  savedColor = Wheel(((colorPos+1) * 256/ 28) % 256);
   wordColor = savedColor;
+
   
 }
 
@@ -167,13 +181,14 @@ void loop()
     tmElements_t tm;
     RTC.read(tm);
 
-    int upPushed = digitalRead(2);
-    int downPushed = digitalRead(3);
-    int selectPushed = digitalRead(4);
-    if(!selectPushed)
+//    int upPushed = digitalRead(2);
+//    int downPushed = digitalRead(3);
+    int selectPushed = Serial.read();//digitalRead(4);
+    //if(!selectPushed)
+    if(selectPushed == 32)
     {
       modeDex++;
-      modeDex%=6;
+      modeDex%=MODENUM;
       mode = modes{modeDex};
     }
    
@@ -197,10 +212,12 @@ void loop()
     switch(mode)
     {
       case OFF:
+        Serial.println("OFF");
         wordColor = 0;
         showWordMap();
         break;
       case WORD_MODE:
+        Serial.println("WORD_MODE");
         wordColor = savedColor;
         showWordMap();
         if(tm.Day == 4 && tm.Month == 7)
@@ -209,18 +226,50 @@ void loop()
         }
         break;
       case DIGIT_MODE:
+        Serial.println("DIGIT_MODE");
         showDigitMap(tm);
         break;
+      case CYCLE_MODE:
+        Serial.println("CYCLE_MODE");
+        tm.Second % 20 > 10 ? showWordMap() : showDigitMap(tm);
+        if((tm.Second % 20 > 10) && (tm.Day == 4) && (tm.Month == 7))
+        {
+          birthday();
+        }
+        break;
       case ADJUST_COLOR:
-        adjustColor(upPushed,downPushed);
-        showWordMap();
+        Serial.println("ADJUST_COLOR");
+        //adjustColor(upPushed,downPushed);
+        adjustColor(selectPushed);
+        //showWordMap();
         break;
       case ADJUST_BRIGHTNESS:
-        adjustBrightness(upPushed,downPushed);
-        showWordMap();
-        
+        Serial.println("ADJUST_BRIGHTNESS");
+        //adjustBrightness(upPushed,downPushed);
+        adjustBrightness(selectPushed);
+        //showWordMap();
         break;
-
+      case ADJUST_HOUR:
+        Serial.println("ADJUST_HOUR");
+        //adjustHour(upPushed,downPushed, tm);
+        adjustHour(selectPushed, tm);
+        break;
+      case ADJUST_MINUTE:
+        Serial.println("ADJUST_MINUTE");
+        //adjustMinute(upPushed,downPushed, tm);
+        adjustMinute(selectPushed,tm);
+        break;
+      case ADJUST_MONTH:
+        Serial.println("ADJUST_MONTH");
+        //adjustMonth(upPushed,downPushed, tm);
+        adjustMonth(selectPushed,tm);
+        break;
+      case ADJUST_DAY:
+        Serial.println("ADJUST_DAY");
+        //adjustDay(upPushed,downPushed,tm);
+        adjustDay(selectPushed,tm);
+        break;
+      
     }
 
 
@@ -235,63 +284,174 @@ void loop()
 
 }
 
-void adjustBrightness(int upPushed, int downPushed)
+//void adjustDay(int upPushed, int downPushed, tmElements_t tm)
+void adjustDay(int selectPushed, tmElements_t tm)
 {
-  if(!upPushed)
+  int units, tens;
+  units = tm.Day  % 10;
+  tens  = tm.Day  / 10;
+  //if(!upPushed)
+  if(selectPushed == 48)
   {
-    //brightness+=20;
-    if(brightness+20 > 255)
-    {
-      brightness = 254;
-    }
-    else
-    {
-      brightness+=20;
-    }
+    tm.Day = (tm.Day + 1 > 31) ? 1 : tm.Day + 1;
+    RTC.write(tm);
   }
-  else if(!downPushed)
+  //else if(!downPushed)
+  else if(selectPushed == 49)
   {
-    //brightness-=20;
-    if(brightness-20 < 0)
-    {
-      brightness = 0;
-    }
-    else
-    {
-      brightness-=20;
-    }
+  
+    tm.Day = (tm.Day - 1 < 1) ? 31 : tm.Day - 1;
+    RTC.write(tm);
   }
-  matrix.setBrightness(brightness);
+
+  matrix.clear();
+  
+  matrix.drawChar( 0, 2, tens+48, savedColor, 0x0000,1);
+  matrix.drawChar( 6, 2, units+48, savedColor, 0x0000,1);
+  matrix.show();
 }
 
-void adjustColor(int upPushed, int downPushed)
+//void adjustMonth(int upPushed, int downPushed, tmElements_t tm)
+void adjustMonth(int selectPushed, tmElements_t tm)
 {
-  if(!upPushed)
+  uint16_t units, tens;
+  units = tm.Month  % 10;
+  tens  = tm.Month  / 10;
+  //if(!upPushed)
+  if(selectPushed == 48)
   {
-    colorPos+=5;
-    colorPos%=256;
-    savedColor = Wheel(colorPos);
+    tm.Month = (tm.Month + 1)%12 ;
+    RTC.write(tm);
   }
-  else if(!downPushed)
+  //else if(!downPushed)
+  else if(selectPushed == 49)
   {
-    colorPos-=5;
-    if(colorPos < 0)
-    {
-      colorPos = 256;
-    }
-    colorPos%=256;
-    savedColor = Wheel(colorPos);
+    tm.Month = tm.Month == 1 ? 12 : (tm.Month - 1)%12;
+    RTC.write(tm);
   }
+
+  matrix.clear();
+  
+  matrix.drawChar( 0, 2, tens+48, savedColor, 0x0000,1);
+  matrix.drawChar( 6, 2, units+48, savedColor, 0x0000,1);
+  matrix.show();
+}
+
+//void adjustHour(int upPushed, int downPushed, tmElements_t tm)
+void adjustHour(int selectPushed, tmElements_t tm)
+{
+  uint16_t units, tens;
+  units = tm.Hour  % 10;
+  tens  = tm.Hour  / 10;
+  //if(!upPushed)
+  if(selectPushed == 48)
+  {
+    tm.Hour = (tm.Hour + 1)%24;
+    RTC.write(tm);
+  }
+  //else if(!downPushed)
+  else if(selectPushed == 49)
+  {
+    tm.Hour = tm.Hour == 0 ? 23 : (tm.Hour - 1)%24;
+    RTC.write(tm);
+  }
+  matrix.clear();
+ 
+  matrix.drawChar( 0, 2, tens+48, savedColor, 0x0000,1);
+  matrix.drawChar( 6, 2, units+48, savedColor, 0x0000,1);
+  matrix.show();
+}
+
+//void adjustHour(int upPushed, int downPushed)
+void adjustMinute(int selectPushed, tmElements_t tm)
+{
+  uint16_t units, tens;
+  units = tm.Minute  % 10;
+  tens  = tm.Minute  / 10;
+  //if(!upPushed)
+  if(selectPushed == 48)
+  {
+    tm.Minute = (tm.Minute + 1)%60;
+    tm.Second = 0;
+    RTC.write(tm);
+  }
+  //else if(!downPushed)
+  else if(selectPushed == 49)
+  {
+    tm.Minute = tm.Minute == 1 ? 59 : (tm.Minute - 1)%60;
+    tm.Second = 0;
+    RTC.write(tm);
+  }
+  matrix.clear();
+ 
+  matrix.drawChar( 0, 2, tens+48, savedColor, 0x0000,1);
+  matrix.drawChar( 6, 2, units+48, savedColor, 0x0000,1);
+  matrix.show();
+}
+
+//void adjustBrightness(int upPushed, int downPushed)
+void adjustBrightness(int selectPushed)
+{
+  //if(!upPushed)
+  if(selectPushed == 48)
+  {
+    brightness = (radius + 1 > 5) ? 255 : (radius + 1) * 255 / 5;
+    radius = radius + 1 > 5 ? 5: radius + 1;
+    //brightness = (brightness + 20 > 255) ? 255 : brightness + 20;
+  }
+  //else if(!downPushed)
+  else if(selectPushed == 49)
+  {
+    brightness = (radius - 1 < 1) ? 0 : (radius - 1) * 255 / 5;
+    radius = radius - 1 < 0 ? 0 : radius - 1;
+    //brightness = (brightness - 20 < 0) ? 0 : brightness - 20;
+    
+  }
+  matrix.clear();
+  matrix.drawFastVLine(5,5-radius,2*radius+1,savedColor);
+  matrix.drawFastHLine(5-radius,5,2*radius+1,savedColor);
+  matrix.drawLine(5-radius,5-radius,5+radius,5+radius,savedColor);
+  matrix.drawLine(5-radius,5+radius,5+radius,5-radius,savedColor);
+  matrix.setBrightness(brightness);
+  matrix.show();
+  
+}
+
+//void adjustColor(int upPushed, int downPushed)
+void adjustColor(int selectPushed)
+{
+  //if(!upPushed && downPushed)
+  if(selectPushed == 48)
+  {
+    colorPos = (colorPos + 1 > 27) ? 0 : colorPos + 1;
+    savedColor = Wheel(((colorPos+1) * 256/ 28) % 256);
+  }
+  //else if(!downPushed && upPushed)
+  else if(selectPushed == 49)
+  {
+    colorPos = (colorPos - 1 < 0) ? 27 : colorPos - 1 ;
+    savedColor = Wheel(((colorPos+1) * 256/ 28) % 256);
+  }
+//  else if(!upPushed && !downPushed)
+//  {
+//    savedColor == 0xffff;
+//  }
+  
+  
   wordColor = savedColor;
+  matrix.clear();
+  matrix.drawCircle(5,5,5,savedColor);
+  matrix.drawPixel(colorWheel[colorPos][0],colorWheel[colorPos][1],0xffff);
+  matrix.show();
+  
 }
 
 void showDigitMap(tmElements_t tm) 
 {
   uint16_t units, tens;
-  char unitsc, tensc;
 
    
-  if (tm.Second % 2) 
+  if (tm.Second/2 % 2) 
   {
     units = tm.Minute % 10;
     tens  = tm.Minute / 10;
@@ -302,16 +462,9 @@ void showDigitMap(tmElements_t tm)
     tens  = tm.Hour / 10;
   }
   matrix.clear();
-
-  unitsc = (char) units ;
-  tensc = (char) tens;
-
-  
-  //Serial.print(tensc);
-  //Serial.println(unitsc);
  
-  matrix.drawChar( 0, 1, tensc, savedColor, 0x0000,1);
-  matrix.drawChar( 6, 1, unitsc, savedColor, 0x0000,1);
+  matrix.drawChar( 0, 2, tens+48, savedColor, 0x0000,1);
+  matrix.drawChar( 6, 2, units+48, savedColor, 0x0000,1);
   matrix.show();
 }
 
@@ -330,8 +483,8 @@ void birthday()
         matrix.drawPixel((uint16_t)birthdayLEDS[i][1],(uint16_t)birthdayLEDS[i][0],Wheel(((i * 256 / 20) + j) & 255));
         //strip.setPixelColor(i, );
     }
-        matrix.show();
-        delay(20);
+    matrix.show();
+    //delay(30);
   }
 }
 
