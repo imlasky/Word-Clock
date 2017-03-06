@@ -20,6 +20,8 @@
 #Usage
 
 - The mode is selected using pullup buttons on the side of the clock
-  - Up and Down to navigate to the mode
-  - Select to select the mode and then exit the mode
+  - Select button to cycle through modes
+  - Up and down buttons to adjust mode when entered
+
+
 
