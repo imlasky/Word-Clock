@@ -1,7 +1,7 @@
 //
 //
 //   Ian Lasky
-//   February 24, 2017
+//   March 5, 2017
 //
 //
 //   Outline of clock for bitmapping reference
