@@ -74,9 +74,13 @@ uint8_t brightness;
 int radius;
 
 //LED Locations for HAPPY BIRTHDAY DANIELLE
-uint16_t birthdayLEDS[20][2] = {{0,10},{1,10},{2,10},{3,10},{4,3},              
-                                {4,4},{4,5},{4,6},{4,7},{4,8},{4,9},{4,10},     
-                                {7,0},{7,1},{7,2},{7,3},{7,4},{7,5},{7,6},{7,7}}; 
+uint16_t birthdayLEDS[20][2] = {{10,0},{10,1},{10,2},{10,3},{3,4},              
+                                {4,4},{5,4},{6,4},{7,4},{8,4},{9,4},{10,4},     
+                                {0,7},{1,7},{2,7},{3,7},{4,7},{5,7},{6,7},{7,7}}; 
+
+int upPushedPrev;
+int downPushedPrev;
+int selectPushedPrev;
 
 
 
@@ -86,10 +90,16 @@ uint16_t birthdayLEDS[20][2] = {{0,10},{1,10},{2,10},{3,10},{4,3},
 #define PIN 6
 
 //Up, down, and select buttons configured as pullup buttons
-#define UP 2
+#define SELECT 2
 #define DOWN 3
-#define SELECT 4
+#define UP 4
 
+
+//Bit mapping the words to corresponding LEDs
+//Used hexadecimal, but the binary on the right shows
+//why the hexidecimal value is its value
+//e.g., 0x700 = 0b11100000000 corresponds to the first 
+//3 LEDs of the first (zeroth) line of the matrix. 
 #define keyITS       wordMap[0]  |= 0x700                //0b11100000000
 #define keyA         wordMap[0]  |= 0x40                 //0b00001000000
 
@@ -122,6 +132,7 @@ uint16_t birthdayLEDS[20][2] = {{0,10},{1,10},{2,10},{3,10},{4,3},
 #define hourNOON     wordMap[9]  |= 0x1e                //0b00000011110
 #define hourMIDNIGHT wordMap[8]  |= 0x7, wordMap[10]  |= 0x7c0       //0b00000000111 , 0b11111000000
 
+//10 modes as listed in the enum above
 #define MODENUM 10
 
 
@@ -136,8 +147,8 @@ uint16_t birthdayLEDS[20][2] = {{0,10},{1,10},{2,10},{3,10},{4,3},
 //Adafruit_NeoPixel strip = Adafruit_NeoPixel(150, PIN, NEO_GRB + NEO_KHZ800);
 
 Adafruit_NeoMatrix matrix = Adafruit_NeoMatrix(ROWS, COLUMNS, PIN,
-      NEO_MATRIX_TOP  + NEO_MATRIX_LEFT +
-      NEO_MATRIX_ROWS + NEO_MATRIX_ZIGZAG,
+      NEO_MATRIX_BOTTOM  + NEO_MATRIX_LEFT +
+      NEO_MATRIX_COLUMNS + NEO_MATRIX_ZIGZAG,
       NEO_GRB         + NEO_KHZ800);
 
 // IMPORTANT: To reduce NeoPixel burnout risk, add 1000 uF capacitor across
@@ -151,25 +162,46 @@ void setup()
 
   Serial.begin(9600);
 
+  //Initialize pins as pullup buttons. 
+  //Works by connection button positive to pin number
+  //and button negative to ground. HIGH when inactive,
+  //LOW when active
   pinMode(UP,INPUT_PULLUP);
   pinMode(DOWN,INPUT_PULLUP);
   pinMode(SELECT,INPUT_PULLUP);
-  
+
+  //Start the matrix and clear it
   matrix.begin();
   matrix.show();
 
+  //Initialize radius for brightness star
+  //Brightness is from 0-5
   radius = 3;
   brightness = radius * 256 / 5;
   matrix.setBrightness(brightness);
 
+  //Initalize the start mode as WORDMODE
   modeDex = 1;
   mode = modes{modeDex};
 
-  colorPos = 0;
-  
+  upPushedPrev = LOW;
+  downPushedPrev = LOW;
+  selectPushedPrev = LOW;
+
+
+
+
+  //Uncomment line to set time. Then comment and reupload.
+  //This prevents it from changing the time again when power
+  //is disconnected. 
+  //setTime(hour,minute,second,day,month,year)
 //  setTime(8,53,00,18,2,2017);
 //  RTC.set(now());
 
+  //Initialize the color position on the wheel to the 
+  //0 position
+  //28 possible colors 
+  colorPos = 0;
   savedColor = Wheel(((colorPos+1) * 256/ 28) % 256);
   wordColor = savedColor;
 
@@ -178,19 +210,43 @@ void setup()
 
 void loop() 
 {
+
+    //Create tmElements_t variable for storing RTC info
     tmElements_t tm;
     RTC.read(tm);
 
-//    int upPushed = digitalRead(2);
-//    int downPushed = digitalRead(3);
-    int selectPushed = Serial.read();//digitalRead(4);
-    //if(!selectPushed)
-    if(selectPushed == 32)
+    //Set variables for up, down, and select buttons
+    //Digital read means they will read from digital pins
+    //2, 3, and 4 respectively
+    int upPushed = digitalRead(4);
+    int downPushed = digitalRead(3);
+    int selectPushed = digitalRead(2);
+
+    //Use the select key to cycle between modes
+    //Only able to go one direction, but easier than
+    //Coding the up and down to select modes
+    if(!selectPushed)
+    //if(selectPushed == 32)
     {
-      modeDex++;
-      modeDex%=MODENUM;
-      mode = modes{modeDex};
+      if(selectPushed != selectPushedPrev)
+      {
+        modeDex++;
+        modeDex%=MODENUM;
+        mode = modes{modeDex};
+        selectPushedPrev = selectPushed;
+      }
+
     }
+    else
+    {
+      if(selectPushed != selectPushedPrev)
+      {
+        selectPushedPrev = selectPushed;
+      }
+    }
+    
+
+
    
     
      
@@ -206,14 +262,17 @@ void loop()
     Serial.print("/");
     Serial.println(1970+tm.Year,DEC);
 
+    //Set the word time using the current time information
     wordTime(tm);
 
-    //wordTest();
+  
+    //Switch statement to determine the current mode
     switch(mode)
     {
       case OFF:
         Serial.println("OFF");
-        wordColor = 0;
+        //Setting the word color to 0 turns off the LEDs
+        wordColor = 0;     
         showWordMap();
         break;
       case WORD_MODE:
@@ -231,6 +290,8 @@ void loop()
         break;
       case CYCLE_MODE:
         Serial.println("CYCLE_MODE");
+        // Cycle between word mode and digit mode every 10 seconds
+        // (condition) ? true case : false case
         tm.Second % 20 > 10 ? showWordMap() : showDigitMap(tm);
         if((tm.Second % 20 > 10) && (tm.Day == 4) && (tm.Month == 7))
         {
@@ -239,37 +300,37 @@ void loop()
         break;
       case ADJUST_COLOR:
         Serial.println("ADJUST_COLOR");
-        //adjustColor(upPushed,downPushed);
-        adjustColor(selectPushed);
-        //showWordMap();
+        adjustColor(upPushed,downPushed);
+        upPushedPrev = upPushed;
+        //checkPushed(upPushed,downPushed);    
+        //adjustColor(selectPushed);
         break;
       case ADJUST_BRIGHTNESS:
         Serial.println("ADJUST_BRIGHTNESS");
-        //adjustBrightness(upPushed,downPushed);
-        adjustBrightness(selectPushed);
-        //showWordMap();
+        adjustBrightness(upPushed,downPushed);
+        //checkPushed(upPushed,downPushed); 
+        //adjustBrightness(selectPushed);
         break;
       case ADJUST_HOUR:
         Serial.println("ADJUST_HOUR");
-        //adjustHour(upPushed,downPushed, tm);
-        adjustHour(selectPushed, tm);
+        adjustHour(upPushed == HIGH,downPushed == HIGH, tm);
+        //adjustHour(selectPushed, tm);
         break;
       case ADJUST_MINUTE:
         Serial.println("ADJUST_MINUTE");
-        //adjustMinute(upPushed,downPushed, tm);
-        adjustMinute(selectPushed,tm);
+        adjustMinute(upPushed == HIGH,downPushed == HIGH, tm);
+        //adjustMinute(selectPushed,tm);
         break;
       case ADJUST_MONTH:
         Serial.println("ADJUST_MONTH");
-        //adjustMonth(upPushed,downPushed, tm);
-        adjustMonth(selectPushed,tm);
+        adjustMonth(upPushed == HIGH,downPushed == HIGH, tm);
+        //adjustMonth(selectPushed,tm);
         break;
       case ADJUST_DAY:
         Serial.println("ADJUST_DAY");
-        //adjustDay(upPushed,downPushed,tm);
-        adjustDay(selectPushed,tm);
+        adjustDay(upPushed == HIGH,downPushed == HIGH,tm);
+        //adjustDay(selectPushed,tm);
         break;
-      
     }
 
 
@@ -280,30 +341,43 @@ void loop()
     Serial.print("[H");     // cursor to home command
 
    
-
+    //delay(1);
 
 }
 
-//void adjustDay(int upPushed, int downPushed, tmElements_t tm)
-void adjustDay(int selectPushed, tmElements_t tm)
+void checkPushed(int upPushed, int downPushed)
 {
+  upPushedPrev = (upPushedPrev != upPushed) ? upPushed : upPushedPrev;
+  downPushedPrev = (downPushedPrev != downPushed) ? downPushed : downPushedPrev;
+}
+
+void adjustDay(int upPushed, int downPushed, tmElements_t tm)
+//void adjustDay(int selectPushed, tmElements_t tm)
+{
+  
   int units, tens;
   units = tm.Day  % 10;
   tens  = tm.Day  / 10;
-  //if(!upPushed)
-  if(selectPushed == 48)
+  if(!upPushed)
+  //if(selectPushed == 48)
   {
-    tm.Day = (tm.Day + 1 > 31) ? 1 : tm.Day + 1;
-    RTC.write(tm);
+    if(upPushed != upPushedPrev)
+    {
+      tm.Day = (tm.Day + 1 > 31) ? 1 : tm.Day + 1;
+      RTC.write(tm);
+    }
   }
-  //else if(!downPushed)
-  else if(selectPushed == 49)
+  else if(!downPushed)
+  //else if(selectPushed == 49)
   {
-  
-    tm.Day = (tm.Day - 1 < 1) ? 31 : tm.Day - 1;
-    RTC.write(tm);
+    if(downPushed != downPushedPrev)
+    {
+      tm.Day = (tm.Day - 1 < 1) ? 31 : tm.Day - 1;
+      RTC.write(tm);
+    }
   }
-
+  upPushedPrev = upPushed;
+  downPushedPrev = downPushed;
   matrix.clear();
   
   matrix.drawChar( 0, 2, tens+48, savedColor, 0x0000,1);
@@ -311,25 +385,32 @@ void adjustDay(int selectPushed, tmElements_t tm)
   matrix.show();
 }
 
-//void adjustMonth(int upPushed, int downPushed, tmElements_t tm)
-void adjustMonth(int selectPushed, tmElements_t tm)
+void adjustMonth(int upPushed, int downPushed, tmElements_t tm)
+//void adjustMonth(int selectPushed, tmElements_t tm)
 {
-  uint16_t units, tens;
+  int units, tens;
   units = tm.Month  % 10;
   tens  = tm.Month  / 10;
-  //if(!upPushed)
-  if(selectPushed == 48)
+  if(!upPushed)
+  //if(selectPushed == 48)
   {
-    tm.Month = (tm.Month + 1)%12 ;
-    RTC.write(tm);
+    if(upPushed != upPushedPrev)
+    {
+      tm.Month = (tm.Month + 1 > 12) ? 1 : tm.Month + 1;
+      RTC.write(tm);
+    }
   }
-  //else if(!downPushed)
-  else if(selectPushed == 49)
+  else if(!downPushed)
+  //else if(selectPushed == 49)
   {
-    tm.Month = tm.Month == 1 ? 12 : (tm.Month - 1)%12;
-    RTC.write(tm);
+    if(downPushed != downPushedPrev)
+    {
+      tm.Month = (tm.Month - 1 < 1) ? 12 : tm.Month - 1;
+      RTC.write(tm);
+    }
   }
-
+  upPushedPrev = upPushed;
+  downPushedPrev = downPushed;
   matrix.clear();
   
   matrix.drawChar( 0, 2, tens+48, savedColor, 0x0000,1);
@@ -337,24 +418,32 @@ void adjustMonth(int selectPushed, tmElements_t tm)
   matrix.show();
 }
 
-//void adjustHour(int upPushed, int downPushed, tmElements_t tm)
-void adjustHour(int selectPushed, tmElements_t tm)
+void adjustHour(int upPushed, int downPushed, tmElements_t tm)
+//void adjustHour(int selectPushed, tmElements_t tm)
 {
-  uint16_t units, tens;
+  int units, tens;
   units = tm.Hour  % 10;
   tens  = tm.Hour  / 10;
-  //if(!upPushed)
-  if(selectPushed == 48)
+  if(!upPushed)
+  //if(selectPushed == 48)
   {
-    tm.Hour = (tm.Hour + 1)%24;
-    RTC.write(tm);
+    if(upPushed != upPushedPrev)
+    {
+      tm.Hour = (tm.Hour + 1 > 23) ? 0 : tm.Hour + 1;
+      RTC.write(tm);
+    }
   }
-  //else if(!downPushed)
-  else if(selectPushed == 49)
+  else if(!downPushed)
+  //else if(selectPushed == 49)
   {
-    tm.Hour = tm.Hour == 0 ? 23 : (tm.Hour - 1)%24;
-    RTC.write(tm);
+    if(downPushed != downPushedPrev)
+    {
+      tm.Hour = (tm.Hour - 1 < 0) ? 23 : tm.Hour - 1;
+      RTC.write(tm);
+    }
   }
+  upPushedPrev = upPushed;
+  downPushedPrev = downPushed;
   matrix.clear();
  
   matrix.drawChar( 0, 2, tens+48, savedColor, 0x0000,1);
@@ -362,26 +451,34 @@ void adjustHour(int selectPushed, tmElements_t tm)
   matrix.show();
 }
 
-//void adjustHour(int upPushed, int downPushed)
-void adjustMinute(int selectPushed, tmElements_t tm)
+void adjustMinute(int upPushed, int downPushed, tmElements_t tm)
+//void adjustMinute(int selectPushed, tmElements_t tm)
 {
-  uint16_t units, tens;
+  int units, tens;
   units = tm.Minute  % 10;
   tens  = tm.Minute  / 10;
-  //if(!upPushed)
-  if(selectPushed == 48)
+  if(!upPushed)
+  //if(selectPushed == 48)
   {
-    tm.Minute = (tm.Minute + 1)%60;
-    tm.Second = 0;
-    RTC.write(tm);
+    if(upPushed != upPushedPrev)
+    {
+      tm.Minute = (tm.Minute + 1 > 59) ? 0 : tm.Minute + 1;
+      tm.Second = 0;
+      RTC.write(tm);
+    }
   }
-  //else if(!downPushed)
-  else if(selectPushed == 49)
+  else if(!downPushed)
+  //else if(selectPushed == 49)
   {
-    tm.Minute = tm.Minute == 1 ? 59 : (tm.Minute - 1)%60;
-    tm.Second = 0;
-    RTC.write(tm);
+    if(downPushed != downPushedPrev)
+    {
+      tm.Minute = (tm.Minute - 1 < 0) ? 59 : tm.Minute - 1;
+      tm.Second = 0;
+      RTC.write(tm);
+    }
   }
+  upPushedPrev = upPushed;
+  downPushedPrev = downPushed;
   matrix.clear();
  
   matrix.drawChar( 0, 2, tens+48, savedColor, 0x0000,1);
@@ -389,24 +486,32 @@ void adjustMinute(int selectPushed, tmElements_t tm)
   matrix.show();
 }
 
-//void adjustBrightness(int upPushed, int downPushed)
-void adjustBrightness(int selectPushed)
+void adjustBrightness(int upPushed, int downPushed)
+//void adjustBrightness(int selectPushed)
 {
-  //if(!upPushed)
-  if(selectPushed == 48)
+  if(!upPushed)
+  //if(selectPushed == 48)
   {
-    brightness = (radius + 1 > 5) ? 255 : (radius + 1) * 255 / 5;
-    radius = radius + 1 > 5 ? 5: radius + 1;
+    if(upPushed != upPushedPrev)
+    {
+      brightness = (radius + 1 > 5) ? 255 : (radius + 1) * 255 / 5;
+      radius = radius + 1 > 5 ? 5: radius + 1;
+    }
     //brightness = (brightness + 20 > 255) ? 255 : brightness + 20;
   }
-  //else if(!downPushed)
-  else if(selectPushed == 49)
+  else if(!downPushed)
+  //else if(selectPushed == 49)
   {
-    brightness = (radius - 1 < 1) ? 0 : (radius - 1) * 255 / 5;
-    radius = radius - 1 < 0 ? 0 : radius - 1;
+    if(downPushed != downPushedPrev)
+    {
+      brightness = (radius - 1 < 1) ? 0 : (radius - 1) * 255 / 5;
+      radius = radius - 1 < 0 ? 0 : radius - 1;
+    }
     //brightness = (brightness - 20 < 0) ? 0 : brightness - 20;
     
   }
+  upPushedPrev = upPushed;
+  downPushedPrev = downPushed;
   matrix.clear();
   matrix.drawFastVLine(5,5-radius,2*radius+1,savedColor);
   matrix.drawFastHLine(5-radius,5,2*radius+1,savedColor);
@@ -417,25 +522,39 @@ void adjustBrightness(int selectPushed)
   
 }
 
-//void adjustColor(int upPushed, int downPushed)
-void adjustColor(int selectPushed)
+void adjustColor(int upPushed, int downPushed)
+//void adjustColor(int selectPushed)
 {
-  //if(!upPushed && downPushed)
-  if(selectPushed == 48)
+
+  if(!upPushed && downPushed)
+  //if(selectPushed == 48)
   {
-    colorPos = (colorPos + 1 > 27) ? 0 : colorPos + 1;
-    savedColor = Wheel(((colorPos+1) * 256/ 28) % 256);
+    if(upPushed != upPushedPrev)
+    {
+      colorPos = (colorPos + 1 > 27) ? 0 : colorPos + 1;
+      savedColor = Wheel(((colorPos+1) * 256/ 28) % 256);
+    }
   }
-  //else if(!downPushed && upPushed)
-  else if(selectPushed == 49)
+  else if(!downPushed && upPushed)
+  //else if(selectPushed == 49)
   {
-    colorPos = (colorPos - 1 < 0) ? 27 : colorPos - 1 ;
-    savedColor = Wheel(((colorPos+1) * 256/ 28) % 256);
+    if(downPushed != downPushedPrev)
+    {
+      colorPos = (colorPos - 1 < 0) ? 27 : colorPos - 1 ;
+      savedColor = Wheel(((colorPos+1) * 256/ 28) % 256);
+    }
   }
-//  else if(!upPushed && !downPushed)
-//  {
-//    savedColor == 0xffff;
-//  }
+  else if(!upPushed && !downPushed)
+  {
+    if(upPushed != upPushedPrev)
+    {
+      if(downPushed != downPushedPrev)
+        savedColor = 0xffff;
+    }
+  }
+  upPushedPrev = upPushed;
+  downPushedPrev = downPushed;
+  
   
   
   wordColor = savedColor;
@@ -480,7 +599,7 @@ void birthday()
   { 
     for(i=0; i < 20; i++) 
     {
-        matrix.drawPixel((uint16_t)birthdayLEDS[i][1],(uint16_t)birthdayLEDS[i][0],Wheel(((i * 256 / 20) + j) & 255));
+        matrix.drawPixel((uint16_t)birthdayLEDS[i][0],(uint16_t)birthdayLEDS[i][1],Wheel(((i * 256 / 20) + j) & 255));
         //strip.setPixelColor(i, );
     }
     matrix.show();
