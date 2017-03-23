@@ -17,7 +17,7 @@
 - ADJUST_MONTH: Allows user to adjust the current month in digit format
 - ADJUST_DAY: Allows user to adjust the current day in digit format
 
-#Usage
+### Usage
 
 - The mode is selected using pullup buttons on the side of the clock
   - Select button to cycle through modes
