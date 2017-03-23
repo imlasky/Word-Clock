@@ -1,8 +1,8 @@
-### Word-Clock
+# Word-Clock
 
 ## An arduino word clock implementation for a gift
 
-# Modes
+### Modes
 
 - OFF: Turns off all LEDs
 - WORD_MODE: Displays the time as a phrase, e.g., "It's twenty til five"
