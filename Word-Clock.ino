@@ -244,6 +244,11 @@ void loop()
         selectPushedPrev = selectPushed;
       }
     }
+
+    if(!upPushed && ! downPushed)
+    {
+      secret();
+    }
     
 
 
@@ -287,6 +292,7 @@ void loop()
       case DIGIT_MODE:
         Serial.println("DIGIT_MODE");
         showDigitMap(tm);
+        matrix.setBrightness(brightness);
         break;
       case CYCLE_MODE:
         Serial.println("CYCLE_MODE");
@@ -297,6 +303,7 @@ void loop()
         {
           birthday();
         }
+        matrix.setBrightness(brightness);
         break;
       case ADJUST_COLOR:
         Serial.println("ADJUST_COLOR");
@@ -343,6 +350,21 @@ void loop()
    
     //delay(1);
 
+}
+
+void secret()
+{
+  int x = matrix.width();
+  matrix.setTextColor(savedColor);
+  matrix.setTextWrap(false);
+  while (--x > -100)
+  {
+    matrix.fillScreen(0);
+    matrix.setCursor(x,2);
+    matrix.print(F("Hello, beautiful"));
+    matrix.show();
+    delay(100);
+  }
 }
 
 void checkPushed(int upPushed, int downPushed)
@@ -568,17 +590,20 @@ void adjustColor(int upPushed, int downPushed)
 void showDigitMap(tmElements_t tm) 
 {
   uint16_t units, tens;
-
+  uint16_t tempBrightness;
+  tempBrightness = brightness / 3;
    
   if (tm.Second/2 % 2) 
   {
     units = tm.Minute % 10;
     tens  = tm.Minute / 10;
+    matrix.setBrightness(tempBrightness);
   } 
   else 
   {
     units = tm.Hour % 10;
     tens  = tm.Hour / 10;
+    matrix.setBrightness(brightness);
   }
   matrix.clear();
  
