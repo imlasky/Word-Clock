@@ -50,7 +50,8 @@ enum modes
   ADJUST_HOUR,
   ADJUST_MINUTE,
   ADJUST_MONTH,
-  ADJUST_DAY
+  ADJUST_DAY,
+  ADJUST_YEAR
 };
 
 //Create mode variable
@@ -132,8 +133,8 @@ int selectPushedPrev;
 #define hourNOON     wordMap[9]  |= 0x1e                //0b00000011110
 #define hourMIDNIGHT wordMap[8]  |= 0x7, wordMap[10]  |= 0x7c0       //0b00000000111 , 0b11111000000
 
-//10 modes as listed in the enum above
-#define MODENUM 10
+//11 modes as listed in the enum above
+#define MODENUM 11
 
 
 // Parameter 1 = number of pixels in strip
@@ -335,20 +336,25 @@ void loop()
         break;
       case ADJUST_DAY:
         Serial.println("ADJUST_DAY");
-        adjustDay(upPushed == HIGH,downPushed == HIGH,tm);
+        adjustDay(upPushed == HIGH,downPushed == HIGH, tm);
         //adjustDay(selectPushed,tm);
         break;
+      case ADJUST_YEAR:
+        Serial.println("ADJUST_YEAR");
+        adjustYear(upPushed == HIGH,downPushed == HIGH, tm);
+        break;
+        
     }
 
 
 
-    Serial.write(27);       // ESC command
+    /*Serial.write(27);       // ESC command
     Serial.print("[2J");    // clear screen command
     Serial.write(27);
     Serial.print("[H");     // cursor to home command
 
    
-    //delay(1);
+    //delay(1);*/
 
 }
 
@@ -361,7 +367,7 @@ void secret()
   {
     matrix.fillScreen(0);
     matrix.setCursor(x,2);
-    matrix.print(F("Hello, beautiful"));
+    matrix.print(F("From, Jewboy"));
     matrix.show();
     delay(100);
   }
@@ -371,6 +377,38 @@ void checkPushed(int upPushed, int downPushed)
 {
   upPushedPrev = (upPushedPrev != upPushed) ? upPushed : upPushedPrev;
   downPushedPrev = (downPushedPrev != downPushed) ? downPushed : downPushedPrev;
+}
+
+void adjustYear(int upPushed, int downPushed, tmElements_t tm)
+{
+  int units, tens;
+  units = (tm.Year + 1970)  % 10;
+  tens  = ((tm.Year + 1970)  / 10) % 10;
+  if(!upPushed)
+  //if(selectPushed == 48)
+  {
+    if(upPushed != upPushedPrev)
+    {
+      tm.Year = (tm.Year + 1 > 130) ? 30 : tm.Year + 1;
+      RTC.write(tm);
+    }
+  }
+  else if(!downPushed)
+  //else if(selectPushed == 49)
+  {
+    if(downPushed != downPushedPrev)
+    {
+      tm.Year = (tm.Year - 1 < 30) ? 129 : tm.Year - 1;
+      RTC.write(tm);
+    }
+  }
+  upPushedPrev = upPushed;
+  downPushedPrev = downPushed;
+  matrix.clear();
+  
+  matrix.drawChar( 0, 2, tens+48, savedColor, 0x0000,1);
+  matrix.drawChar( 6, 2, units+48, savedColor, 0x0000,1);
+  matrix.show();
 }
 
 void adjustDay(int upPushed, int downPushed, tmElements_t tm)
@@ -401,6 +439,8 @@ void adjustDay(int upPushed, int downPushed, tmElements_t tm)
   upPushedPrev = upPushed;
   downPushedPrev = downPushed;
   matrix.clear();
+
+  Serial.println(tens);
   
   matrix.drawChar( 0, 2, tens+48, savedColor, 0x0000,1);
   matrix.drawChar( 6, 2, units+48, savedColor, 0x0000,1);
