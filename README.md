@@ -16,6 +16,7 @@
 - ADJUST_MINUTE: Allows the user to adjust the current minute in digit format
 - ADJUST_MONTH: Allows user to adjust the current month in digit format
 - ADJUST_DAY: Allows user to adjust the current day in digit format
+- ADJUST_YEAR: Allows user to adjust the current year in digit format
 
 ### Usage
 
