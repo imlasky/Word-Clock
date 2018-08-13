@@ -14,7 +14,7 @@
 //        4 T W O B I R T H D A Y
 //        5 G T H R E E S E V E N
 //        6 F O U R F I V E S I X
-//        7 D A N I E L L E T E N
+//        7 A M E L A I N E T E N
 //        8 N I N E I G H T M I D
 //        9 Z E L E V E N O O N J
 //       10 N I G H T O C L O C K
@@ -116,7 +116,7 @@ int selectPushedPrev;
 
 //#define keyHAPPY     wordMap[0]  |= 0x1, wordMap[1]  |= 0x1, wordMap[2]  |= 0x1, wordMap[3]  |= 0x1, wordMap[4]  |= 0x1
 //#define keyBIRTHDAY  wordMap[4]  |= 0xff                //0b00011111111
-//#define keyDANIELLE  wordMap[7]  |= 0x7f8               //0b11111111000
+//#define keyAMELAINE  wordMap[7]  |= 0x7f8               //0b11111111000
 
 
 #define hourONE      wordMap[3]  |= 0xe                 //0b00000001110
@@ -367,7 +367,7 @@ void secret()
   {
     matrix.fillScreen(0);
     matrix.setCursor(x,2);
-    matrix.print(F("From, Jewboy"));
+    matrix.print(F("Hey, beautiful"));
     matrix.show();
     delay(100);
   }
@@ -658,7 +658,7 @@ void birthday()
 
 //  keyHAPPY;
 //  keyBIRTHDAY;
-//  keyDANIELLE;
+//  keyAMELAINE;
 
   for(j=0; j<256; j++) 
   { 
