@@ -74,7 +74,7 @@ uint16_t colorWheel[28][2] = {{0,3},{0,4},{0,5},{0,6},{0,7},{1,8},{2,9},
 uint8_t brightness;
 int radius;
 
-//LED Locations for HAPPY BIRTHDAY DANIELLE
+//LED Locations for HAPPY BIRTHDAY AMELAINE
 uint16_t birthdayLEDS[20][2] = {{10,0},{10,1},{10,2},{10,3},{3,4},              
                                 {4,4},{5,4},{6,4},{7,4},{8,4},{9,4},{10,4},     
                                 {0,7},{1,7},{2,7},{3,7},{4,7},{5,7},{6,7},{7,7}}; 
